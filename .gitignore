@@ -1,0 +1,6 @@
+*.exe
+*.zip
+*.test
+dist/
+.idea/
+.vscode/
