@@ -22,5 +22,7 @@
     "OriginalFilename": "dwrean-cleaner-portable.exe",
     "ProductName": "dwrean Cleaner Portable",
     "ProductVersion": "1.0.0.0"
-  }
+  },
+  "IconPath": "assets/dwrean-cleaner.ico",
+  "ApplicationIconPath": "assets/dwrean-cleaner.ico"
 }
