@@ -3,10 +3,16 @@ name: Test and release dwrean Cleaner Portable
 on:
   push:
     branches: [main]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'versioninfo.json'
+      - 'scripts/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 concurrency:
-  group: dwrean-cleaner-stable-v1-${{ github.ref }}
+  group: dwrean-cleaner-stable-release-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -57,28 +63,28 @@ jobs:
           go build -trimpath -ldflags="-s -w -H windowsgui" -o dist/dwrean-cleaner-portable.exe .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $info = (Get-Item dist/dwrean-cleaner-portable.exe).VersionInfo
-          if (!$info.FileVersion.StartsWith('1.0.0')) { throw "Missing Windows file version: $($info.FileVersion)" }
+          if (!$info.FileVersion.StartsWith('1.1.0')) { throw "Missing Windows file version: $($info.FileVersion)" }
           if ($info.ProductName -ne 'dwrean Cleaner Portable') { throw "Missing product metadata: $($info.ProductName)" }
           Compress-Archive -Path dist/dwrean-cleaner-portable.exe -DestinationPath dist/dwrean-cleaner-portable.zip -Force
           (Get-FileHash dist/dwrean-cleaner-portable.exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  dwrean-cleaner-portable.exe' | Set-Content -Encoding ascii dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: dwrean-cleaner-portable-v1.0.0-windows-x64
+          name: dwrean-cleaner-portable-v1.1.0-windows-x64
           path: |
             dist/dwrean-cleaner-portable.exe
             dist/dwrean-cleaner-portable.zip
             dist/SHA256SUMS.txt
-      - name: Publish v1.0.0 stable GitHub Release
+      - name: Publish v1.1.0 stable GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.0'
+          $tag = 'v1.1.0'
           $assets = @('dist/dwrean-cleaner-portable.exe','dist/dwrean-cleaner-portable.zip','dist/SHA256SUMS.txt')
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $assets --clobber
           } else {
-            gh release create $tag $assets --title 'dwrean Cleaner Portable v1.0.0' --notes 'Πρώτη ολοκληρωμένη έκδοση: εικονίδιο dwrean.net, ελληνικό παράθυρο «Περί» με ενεργούς συνδέσμους, πληροφορίες δημιουργού/έκδοσης και ασφαλής καθαρισμός με ένα κλικ. Windows 10/11 (64-bit). Δωρεάν / Portable / MIT. Το εκτελέσιμο δεν είναι ψηφιακά υπογεγραμμένο.' --latest --target $env:GITHUB_SHA
+            gh release create $tag $assets --title 'dwrean Cleaner Portable v1.1.0 — Νέα μοντέρνα εμφάνιση' --notes 'Κανονική σταθερή έκδοση, όχι beta. Πλήρης ανασχεδιασμός της εφαρμογής και του παραθύρου Περί με μοντέρνα στρογγυλεμένα κουμπιά και κάρτες, ανανεωμένα μηνύματα κατάστασης, ενσωματωμένο λογότυπο dwrean.net και ενεργά links. Ο δοκιμασμένος μηχανισμός ασφαλούς καθαρισμού παραμένει ίδιος. Windows 10/11 x64, portable, δωρεάν, MIT. Δεν περιλαμβάνει ψηφιακή υπογραφή. Δες τις οδηγίες και τους περιορισμούς στο README.' --latest --target $env:GITHUB_SHA
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
