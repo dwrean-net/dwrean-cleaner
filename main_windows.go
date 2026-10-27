@@ -11,31 +11,41 @@ import (
 	"unsafe"
 )
 
-// A dependency-free, native Win32 GUI: this builds into a single portable EXE.
+// A small, modern Win32 interface: no installer, webview, or third-party GUI runtime.
 const (
-	wsVisible        = 0x10000000
-	wsChild          = 0x40000000
-	wsCaption        = 0x00C00000
-	wsSysMenu        = 0x00080000
-	wsMinimizeBox    = 0x00020000
-	bsOwnerDraw      = 0x0000000B
-	wmDestroy        = 0x0002
-	wmPaint          = 0x000F
-	wmCommand        = 0x0111
-	wmDrawItem       = 0x002B
-	wmSetFont        = 0x0030
-	wmCtlColorStatic = 0x0138
-	wmDone           = 0x8001
-	wmClose          = 0x0010
-	dtCenter         = 0x00000001
-	dtVCenter        = 0x00000004
-	dtSingleLine     = 0x00000020
-	transparent      = 1
-	swShow           = 5
-	idClean          = 1001
-	odsDisabled      = 0x0004
-	odsSelected      = 0x0001
-	nullPen          = 8
+	wsVisible     = 0x10000000
+	wsChild       = 0x40000000
+	wsCaption     = 0x00C00000
+	wsSysMenu     = 0x00080000
+	wsMinimizeBox = 0x00020000
+	wsTabStop     = 0x00010000
+	bsOwnerDraw   = 0x0000000B
+	wmDestroy     = 0x0002
+	wmPaint       = 0x000F
+	wmCommand     = 0x0111
+	wmDrawItem    = 0x002B
+	wmSetFont     = 0x0030
+	wmDone        = 0x8001
+	wmClose       = 0x0010
+	dtCenter      = 0x00000001
+	dtVCenter     = 0x00000004
+	dtSingleLine  = 0x00000020
+	dtWordBreak   = 0x00000010
+	dtLeft        = 0x00000000
+	transparent   = 1
+	swShow        = 5
+	idClean       = 1001
+	odsSelected   = 0x0001
+	odsDisabled   = 0x0004
+	odsFocus      = 0x0010
+	odsHotlight   = 0x0040
+	nullPen       = 8
+	imageIcon     = 1
+)
+
+const (
+	canvasW = 790
+	canvasH = 575
 )
 
 type winRect struct{ Left, Top, Right, Bottom int32 }
@@ -88,299 +98,333 @@ var (
 	gdi32    = syscall.NewLazyDLL("gdi32.dll")
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	pRegisterClass      = user32.NewProc("RegisterClassExW")
-	pCreateWindow       = user32.NewProc("CreateWindowExW")
-	pDefWindow          = user32.NewProc("DefWindowProcW")
-	pGetMessage         = user32.NewProc("GetMessageW")
-	pTranslateMessage   = user32.NewProc("TranslateMessage")
-	pDispatchMessage    = user32.NewProc("DispatchMessageW")
-	pPostQuit           = user32.NewProc("PostQuitMessage")
-	pSendMessage        = user32.NewProc("SendMessageW")
-	pPostMessage        = user32.NewProc("PostMessageW")
-	pShowWindow         = user32.NewProc("ShowWindow")
-	pUpdateWindow       = user32.NewProc("UpdateWindow")
-	pSetWindowText      = user32.NewProc("SetWindowTextW")
-	pEnableWindow       = user32.NewProc("EnableWindow")
-	pInvalidateRect     = user32.NewProc("InvalidateRect")
-	pBeginPaint         = user32.NewProc("BeginPaint")
-	pEndPaint           = user32.NewProc("EndPaint")
-	pFillRect           = user32.NewProc("FillRect")
-	pDrawText           = user32.NewProc("DrawTextW")
-	pGetSysColor        = user32.NewProc("GetSysColor")
-	pLoadCursor         = user32.NewProc("LoadCursorW")
-	pSetProcessDPIAware = user32.NewProc("SetProcessDPIAware")
+	pRegisterClass   = user32.NewProc("RegisterClassExW")
+	pCreateWindow    = user32.NewProc("CreateWindowExW")
+	pDefWindow       = user32.NewProc("DefWindowProcW")
+	pGetMessage      = user32.NewProc("GetMessageW")
+	pTranslateMessage = user32.NewProc("TranslateMessage")
+	pDispatchMessage = user32.NewProc("DispatchMessageW")
+	pPostQuit        = user32.NewProc("PostQuitMessage")
+	pSendMessage     = user32.NewProc("SendMessageW")
+	pPostMessage     = user32.NewProc("PostMessageW")
+	pShowWindow      = user32.NewProc("ShowWindow")
+	pUpdateWindow    = user32.NewProc("UpdateWindow")
+	pEnableWindow    = user32.NewProc("EnableWindow")
+	pInvalidateRect  = user32.NewProc("InvalidateRect")
+	pBeginPaint      = user32.NewProc("BeginPaint")
+	pEndPaint        = user32.NewProc("EndPaint")
+	pFillRect        = user32.NewProc("FillRect")
+	pDrawText        = user32.NewProc("DrawTextW")
+	pLoadCursor      = user32.NewProc("LoadCursorW")
+	pDrawIconEx      = user32.NewProc("DrawIconEx")
+	pSetDPIAware     = user32.NewProc("SetProcessDPIAware")
+	pSetWindowText   = user32.NewProc("SetWindowTextW")
+	pGetModuleHandle = kernel32.NewProc("GetModuleHandleW")
+	pCreateBrush     = gdi32.NewProc("CreateSolidBrush")
+	pCreateFont      = gdi32.NewProc("CreateFontW")
+	pSelectObject    = gdi32.NewProc("SelectObject")
+	pDeleteObject    = gdi32.NewProc("DeleteObject")
+	pGetStockObject  = gdi32.NewProc("GetStockObject")
+	pRoundRect       = gdi32.NewProc("RoundRect")
+	pSetBkMode       = gdi32.NewProc("SetBkMode")
+	pSetTextColor    = gdi32.NewProc("SetTextColor")
 
-	pGetModuleHandle  = kernel32.NewProc("GetModuleHandleW")
-	pCreateSolidBrush = gdi32.NewProc("CreateSolidBrush")
-	pCreateFont       = gdi32.NewProc("CreateFontW")
-	pSelectObject     = gdi32.NewProc("SelectObject")
-	pDeleteObject     = gdi32.NewProc("DeleteObject")
-	pGetStockObject   = gdi32.NewProc("GetStockObject")
-	pRoundRect        = gdi32.NewProc("RoundRect")
-	pSetBkMode        = gdi32.NewProc("SetBkMode")
-	pSetTextColor     = gdi32.NewProc("SetTextColor")
+	mainWindow uintptr
+	cleanButton uintptr
+	aboutButton uintptr
+	backgroundBrush uintptr
+	whiteBrush uintptr
+	appIcon uintptr
 
-	hwndMain        uintptr
-	hwndButton      uintptr
-	hwndStatus      uintptr
-	hwndNote        uintptr
-	hwndHeader      uintptr
-	hwndKicker      uintptr
-	hwndTitle       uintptr
-	hwndDescription uintptr
-	hwndFooter      uintptr
-	hwndAboutButton uintptr
-	hwndVersion uintptr
-	hwndLogo uintptr
+	fontLogo uintptr
+	fontTiny uintptr
+	fontBody uintptr
+	fontMedium uintptr
+	fontTitle uintptr
+	fontAction uintptr
+	fontResult uintptr
 
-	brushBackground uintptr
-	brushWhite      uintptr
-	fontBrand       uintptr
-	fontKicker      uintptr
-	fontTitle       uintptr
-	fontDescription uintptr
-	fontButton      uintptr
-	fontStatus      uintptr
-	fontFooter      uintptr
-
-	active      bool
-	finished    bool
-	completed   CleanResult
+	active bool
+	finished bool
+	statusTitle = "Έτοιμο για καθαρισμό"
+	statusBody  = "Πάτησε το κουμπί για να αφαιρέσεις παλιά προσωρινά αρχεία."
+	statusFoot  = "Windows   •   Browsers   •   GPU cache   •   Αναφορές σφαλμάτων"
+	completed CleanResult
 	completedMu sync.Mutex
 )
 
-func rgb(r, g, b byte) uintptr                             { return uintptr(r) | uintptr(g)<<8 | uintptr(b)<<16 }
-func utf16(s string) *uint16                               { return syscall.StringToUTF16Ptr(s) }
-func call(proc *syscall.LazyProc, args ...uintptr) uintptr { r, _, _ := proc.Call(args...); return r }
-func ptr(s string) uintptr                                 { return uintptr(unsafe.Pointer(utf16(s))) }
+var (
+	cNavy = rgb(20, 36, 64)
+	cMuted = rgb(91, 105, 128)
+	cBlue = rgb(40, 104, 236)
+	cBlueHover = rgb(27, 86, 204)
+	cSoftBlue = rgb(236, 243, 255)
+	cBorder = rgb(227, 234, 244)
+	cCanvas = rgb(247, 249, 253)
+	cSuccess = rgb(21, 133, 92)
+	cWhite = rgb(255, 255, 255)
+)
 
-func createFont(height, weight int, face string) uintptr {
-	return call(pCreateFont, uintptr(int32(-height)), 0, 0, 0, uintptr(weight), 0, 0, 0, 1, 0, 0, 5, 0, ptr(face))
-}
-func setFont(hwnd, font uintptr) { call(pSendMessage, hwnd, wmSetFont, font, 1) }
-func label(content string, x, y, w, h int32, font uintptr) uintptr {
-	hwnd := call(pCreateWindow, 0, ptr("STATIC"), ptr(content), wsChild|wsVisible,
-		uintptr(x), uintptr(y), uintptr(w), uintptr(h), hwndMain, 0, 0, 0)
-	setFont(hwnd, font)
-	return hwnd
-}
-func repaint()                       { call(pInvalidateRect, hwndMain, 0, 1) }
-func setText(hwnd uintptr, s string) { call(pSetWindowText, hwnd, ptr(s)) }
+func rgb(r,g,b byte) uintptr { return uintptr(r) | uintptr(g)<<8 | uintptr(b)<<16 }
+func utf16(s string) *uint16 { return syscall.StringToUTF16Ptr(s) }
+func ptr(s string) uintptr { return uintptr(unsafe.Pointer(utf16(s))) }
+func call(p *syscall.LazyProc, args ...uintptr) uintptr { r,_,_:=p.Call(args...); return r }
+func rect(x,y,w,h int32) winRect { return winRect{x,y,x+w,y+h} }
 
-func roundedFill(hdc uintptr, rect winRect, fill uintptr, radius int32) {
-	brush := call(pCreateSolidBrush, fill)
-	oldBrush := call(pSelectObject, hdc, brush)
-	pen := call(pGetStockObject, nullPen)
-	oldPen := call(pSelectObject, hdc, pen)
-	call(pRoundRect, hdc, uintptr(rect.Left), uintptr(rect.Top), uintptr(rect.Right), uintptr(rect.Bottom), uintptr(radius), uintptr(radius))
-	call(pSelectObject, hdc, oldPen)
-	call(pSelectObject, hdc, oldBrush)
-	call(pDeleteObject, brush)
+func font(size, weight int) uintptr {
+	return call(pCreateFont, uintptr(int32(-size)), 0,0,0,uintptr(weight),0,0,0,1,0,0,5,0,ptr("Segoe UI"))
 }
 
-func drawBackground(hwnd uintptr) {
+func fillRect(hdc uintptr, r winRect, color uintptr) {
+	b:=call(pCreateBrush,color)
+	call(pFillRect,hdc,uintptr(unsafe.Pointer(&r)),b)
+	call(pDeleteObject,b)
+}
+
+func roundRect(hdc uintptr, r winRect, color uintptr, radius int32) {
+	b:=call(pCreateBrush,color)
+	oldB:=call(pSelectObject,hdc,b)
+	oldP:=call(pSelectObject,hdc,call(pGetStockObject,nullPen))
+	call(pRoundRect,hdc,uintptr(r.Left),uintptr(r.Top),uintptr(r.Right),uintptr(r.Bottom),uintptr(radius),uintptr(radius))
+	call(pSelectObject,hdc,oldP)
+	call(pSelectObject,hdc,oldB)
+	call(pDeleteObject,b)
+}
+
+func drawText(hdc uintptr, content string, r winRect, f, color uintptr, flags uintptr) {
+	old:=call(pSelectObject,hdc,f)
+	call(pSetBkMode,hdc,transparent)
+	call(pSetTextColor,hdc,color)
+	call(pDrawText,hdc,ptr(content),^uintptr(0),uintptr(unsafe.Pointer(&r)),flags)
+	call(pSelectObject,hdc,old)
+}
+
+func button(parent uintptr, id int32, title string, r winRect) uintptr {
+	w:=call(pCreateWindow,0,ptr("BUTTON"),ptr(title),
+		wsVisible|wsChild|wsTabStop|bsOwnerDraw,
+		uintptr(r.Left),uintptr(r.Top),uintptr(r.Right-r.Left),uintptr(r.Bottom-r.Top),
+		parent,uintptr(id),0,0)
+	call(pSendMessage,w,wmSetFont,fontBody,0)
+	return w
+}
+
+func drawModernButton(item *drawItem) {
+	r:=item.Rc
+	pressed:=item.ItemState&odsSelected != 0
+	hot:=item.ItemState&odsHotlight != 0
+	disabled:=item.ItemState&odsDisabled != 0
+	color:=cBlue
+	label:=""
+	textColor:=cWhite
+	f:=fontBody
+
+	switch item.CtlID {
+	case idClean:
+		label="ΚΑΘΑΡΙΣΜΟΣ ΤΩΡΑ"
+		f=fontAction
+		if active {label="ΓΙΝΕΤΑΙ ΚΑΘΑΡΙΣΜΟΣ..."}
+		if finished && !active {label="ΚΑΘΑΡΙΣΜΟΣ ΞΑΝΑ"}
+		if disabled {color=rgb(152,180,225)} else if pressed {color=rgb(21,73,180)} else if hot {color=cBlueHover}
+	case idAbout:
+		label="ⓘ  Περί"
+		color=cSoftBlue
+		textColor=cBlue
+		if pressed {color=rgb(213,228,252)} else if hot {color=rgb(222,235,255)}
+	case idSite:
+		label="dwrean.net  ↗"
+		color=cBlue
+		if pressed {color=rgb(21,73,180)} else if hot {color=cBlueHover}
+	case idRepo:
+		label="GitHub  ↗"
+		color=cSoftBlue
+		textColor=cBlue
+		if pressed {color=rgb(213,228,252)} else if hot {color=rgb(222,235,255)}
+	case idDismiss:
+		label="Κλείσιμο"
+		color=rgb(240,244,250)
+		textColor=cNavy
+		if pressed {color=rgb(217,227,241)} else if hot {color=rgb(226,234,245)}
+	}
+	roundRect(item.Hdc,r,color,18)
+	drawText(item.Hdc,label,r,f,textColor,dtCenter|dtVCenter|dtSingleLine)
+	// Keep native button focus and keyboard navigation accessible.
+	if item.ItemState&odsFocus != 0 {
+		focus:=winRect{r.Left+4,r.Top+4,r.Right-4,r.Bottom-4}
+		call(user32.NewProc("DrawFocusRect"),item.Hdc,uintptr(unsafe.Pointer(&focus)))
+	}
+}
+
+func paintMain(hwnd uintptr) {
 	var ps paintStruct
-	hdc := call(pBeginPaint, hwnd, uintptr(unsafe.Pointer(&ps)))
-	if hdc == 0 {
-		return
+	hdc:=call(pBeginPaint,hwnd,uintptr(unsafe.Pointer(&ps)))
+	if hdc==0 {return}
+
+	fillRect(hdc,rect(0,0,canvasW,canvasH),cCanvas)
+	fillRect(hdc,rect(0,0,canvasW,6),cBlue)
+	// Brand header
+	if appIcon!=0 {
+		call(pDrawIconEx,hdc,40,29,appIcon,48,48,0,0,3)
 	}
-	var accent = winRect{0, 0, 740, 7}
-	blueBrush := call(pCreateSolidBrush, rgb(31, 110, 245))
-	call(pFillRect, hdc, uintptr(unsafe.Pointer(&accent)), blueBrush)
-	call(pDeleteObject, blueBrush)
-	roundedFill(hdc, winRect{35, 238, 704, 390}, rgb(255, 255, 255), 24)
-	call(pEndPaint, hwnd, uintptr(unsafe.Pointer(&ps)))
+	drawText(hdc,"dwrean Cleaner",rect(104,29,435,38),fontLogo,cNavy,dtLeft|dtVCenter|dtSingleLine)
+	drawText(hdc,"PORTABLE  /  WINDOWS 10 & 11",rect(106,66,340,24),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
+	roundRect(hdc,rect(594,39,75,31),cWhite,13)
+	drawText(hdc,"v"+appVersion,rect(594,39,75,31),fontTiny,cMuted,dtCenter|dtVCenter|dtSingleLine)
+
+	// Intro section
+	drawText(hdc,"Καθάρισε έξυπνα.",rect(42,121,705,46),fontTitle,cNavy,dtLeft|dtVCenter|dtSingleLine)
+	drawText(hdc,"Λιγότερα περιττά αρχεία, περισσότερος ελεύθερος χώρος.",rect(44,172,691,30),fontBody,cMuted,dtLeft|dtVCenter|dtSingleLine)
+
+	// Raised main cleanup surface
+	roundRect(hdc,rect(40,226,710,225),rgb(231,237,246),32)
+	roundRect(hdc,rect(38,222,714,225),cWhite,32)
+	dotColor:=cSuccess
+	if active {dotColor=cBlue}
+	roundRect(hdc,rect(65,247,11,11),dotColor,11)
+	header:="ΕΤΟΙΜΟ ΓΙΑ ΚΑΘΑΡΙΣΜΟ"
+	if active {header="Ο ΚΑΘΑΡΙΣΜΟΣ ΕΙΝΑΙ ΣΕ ΕΞΕΛΙΞΗ"}
+	if finished {header="Ο ΚΑΘΑΡΙΣΜΟΣ ΟΛΟΚΛΗΡΩΘΗΚΕ"}
+	drawText(hdc,header,rect(85,239,600,28),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
+
+	statusColor:=cNavy
+	if finished {statusColor=cSuccess}
+	drawText(hdc,statusTitle,rect(67,353,649,29),fontMedium,statusColor,dtLeft|dtVCenter|dtSingleLine)
+	drawText(hdc,statusBody,rect(67,380,651,43),fontTiny,cMuted,dtLeft|dtWordBreak)
+
+	// Subtle information banner
+	roundRect(hdc,rect(38,462,714,59),cSoftBlue,22)
+	roundRect(hdc,rect(57,479,20,20),rgb(202,224,255),20)
+	drawText(hdc,"✓",rect(57,479,20,20),fontTiny,cBlue,dtCenter|dtVCenter|dtSingleLine)
+	drawText(hdc,statusFoot,rect(90,469,637,45),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
+
+	drawText(hdc,"© 2026 dwrean.net    •    Δωρεάν και ανοιχτού κώδικα (MIT)",rect(43,532,600,25),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
+	drawText(hdc,"v"+appVersion,rect(676,532,71,25),fontTiny,cMuted,dtCenter|dtVCenter|dtSingleLine)
+	call(pEndPaint,hwnd,uintptr(unsafe.Pointer(&ps)))
 }
 
-func drawButton(item *drawItem) {
-	color := rgb(31, 110, 245)
-	if active || item.ItemState&odsDisabled != 0 {
-		color = rgb(149, 176, 217)
-	}
-	if item.ItemState&odsSelected != 0 && !active {
-		color = rgb(24, 87, 196)
-	}
-	roundedFill(item.Hdc, item.Rc, color, 24)
-	call(pSetBkMode, item.Hdc, transparent)
-	call(pSetTextColor, item.Hdc, rgb(255, 255, 255))
-	oldFont := call(pSelectObject, item.Hdc, fontButton)
-	text := "ΚΑΘΑΡΙΣΜΟΣ ΤΩΡΑ"
-	if active {
-		text = "ΓΙΝΕΤΑΙ ΚΑΘΑΡΙΣΜΟΣ..."
-	} else if finished {
-		text = "ΚΑΘΑΡΙΣΜΟΣ ΞΑΝΑ"
-	}
-	r := item.Rc
-	call(pDrawText, item.Hdc, ptr(text), ^uintptr(0), uintptr(unsafe.Pointer(&r)), dtCenter|dtVCenter|dtSingleLine)
-	call(pSelectObject, item.Hdc, oldFont)
-}
+func repaintMain() {if mainWindow!=0 {call(pInvalidateRect,mainWindow,0,1)}}
 
 func startClean() {
-	if active {
-		return
-	}
-	active = true
-	finished = false
-	setText(hwndStatus, "Ελέγχονται προσωρινά αρχεία και caches...")
-	setText(hwndNote, "Δεν αφαιρούνται προσωπικά αρχεία ή αρχεία που χρησιμοποιούνται.")
-	call(pEnableWindow, hwndButton, 0)
-	repaint()
-	go func() {
-		running := runningBrowsers()
-		result := cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"), running), nowForCleanup())
-		for _, name := range []string{"chrome", "msedge", "brave", "firefox"} {
-			if running[name] { result.BrowsersSkipped++ }
+	if active {return}
+	active=true
+	finished=false
+	statusTitle="Γίνεται καθαρισμός..."
+	statusBody="Ελέγχουμε προσεκτικά τους επιτρεπόμενους φακέλους."
+	statusFoot="Μην κλείσεις την εφαρμογή μέχρι να ολοκληρωθεί."
+	call(pEnableWindow,cleanButton,0)
+	repaintMain()
+	go func(){
+		running:=runningBrowsers()
+		result:=cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"),running),nowForCleanup())
+		for _,name:=range []string{"chrome","msedge","brave","firefox"} {
+			if running[name] {result.BrowsersSkipped++}
 		}
 		completedMu.Lock()
-		completed = result
+		completed=result
 		completedMu.Unlock()
-		call(pPostMessage, hwndMain, wmDone, 0, 0)
+		call(pPostMessage,mainWindow,wmDone,0,0)
 	}()
 }
 
-func onDone() {
+func finishClean() {
 	completedMu.Lock()
-	result := completed
+	result:=completed
 	completedMu.Unlock()
-	active = false
-	finished = true
-	if result.Locations == 0 {
-		setText(hwndStatus, "Δεν βρέθηκαν προσβάσιμοι φάκελοι καθαρισμού.")
-		setText(hwndNote, "Δεν πραγματοποιήθηκε καμία διαγραφή.")
-	} else if result.Deleted == 0 {
-		setText(hwndStatus, "Ο υπολογιστής είναι ήδη καθαρός από παλιά προσωρινά αρχεία.")
-		setText(hwndNote, "Δεν διαγράφηκε κανένα αρχείο.")
-	} else {
-		setText(hwndStatus, fmt.Sprintf("Αφαιρέθηκαν %d αρχεία · %s", result.Deleted, formatBytes(result.Bytes)))
-		if result.Skipped > 0 {
-			setText(hwndNote, "Ορισμένα προστατευμένα ή ενεργά αρχεία παραλείφθηκαν.")
-		} else {
-			setText(hwndNote, "Ο καθαρισμός ολοκληρώθηκε επιτυχώς.")
-		}
+	active=false
+	finished=true
+	if result.Locations==0 {
+		statusTitle="Δεν βρέθηκαν διαθέσιμοι φάκελοι."
+		statusBody="Δεν πραγματοποιήθηκε καμία διαγραφή."
+	}else if result.Deleted==0 {
+		statusTitle="Δεν βρέθηκαν παλιά προσωρινά αρχεία."
+		statusBody="Δεν διαγράφηκε κανένα αρχείο σε αυτόν τον έλεγχο."
+	}else{
+		statusTitle=fmt.Sprintf("Ελευθερώθηκαν %s",formatBytes(result.Bytes))
+		statusBody=fmt.Sprintf("Διαγράφηκαν %d παλιά προσωρινά αρχεία.",result.Deleted)
+		if result.Skipped>0 {statusBody+=" Κάποια προστατευμένα αρχεία παραλείφθηκαν."}
 	}
-	if result.BrowsersSkipped > 0 {
-		setText(hwndNote, "Για περισσότερη browser cache, κλείσε τους browsers και ξαναπάτησε.")
+	statusFoot="Τα προσωπικά σου αρχεία και οι ρυθμίσεις παραμένουν ανέπαφα."
+	if result.BrowsersSkipped>0 {
+		statusFoot="Για επιπλέον browser cache, κλείσε τους browsers και ξαναδοκίμασε."
 	}
-	call(pEnableWindow, hwndButton, 1)
-	repaint()
+	call(pEnableWindow,cleanButton,1)
+	repaintMain()
 }
 
-func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
-	switch msg {
+func mainWndProc(hwnd uintptr,msg uint32,wparam,lparam uintptr) uintptr {
+	switch msg{
 	case wmPaint:
-		drawBackground(hwnd)
+		paintMain(hwnd)
 		return 0
-	case wmCtlColorStatic:
-		call(pSetBkMode, wParam, transparent)
-		switch lParam {
-		case hwndHeader, hwndTitle:
-			call(pSetTextColor, wParam, rgb(19, 39, 67))
-		case hwndKicker:
-			call(pSetTextColor, wParam, rgb(31, 110, 245))
-		case hwndStatus:
-			if finished {
-				call(pSetTextColor, wParam, rgb(23, 120, 87))
-			} else {
-				call(pSetTextColor, wParam, rgb(27, 53, 81))
-			}
-			return brushWhite
-		case hwndNote:
-			call(pSetTextColor, wParam, rgb(109, 120, 139))
-			return brushWhite
-		default:
-			call(pSetTextColor, wParam, rgb(109, 120, 139))
-		}
-		return brushBackground
 	case wmDrawItem:
-		item := (*drawItem)(unsafe.Pointer(lParam))
-		if item.CtlID == idClean {
-			drawButton(item)
-			return 1
+		if lparam!=0 {
+			item:=(*drawItem)(unsafe.Pointer(lparam))
+			if item.CtlID==idClean || item.CtlID==idAbout {
+				drawModernButton(item)
+				return 1
+			}
 		}
 	case wmCommand:
-		if wParam&0xffff == idAbout {
+		switch uint32(wparam&0xffff) {
+		case idClean:
+			startClean()
+			return 0
+		case idAbout:
 			showAbout()
 			return 0
 		}
-		if wParam&0xffff == idClean {
-			startClean()
-			return 0
-		}
 	case wmDone:
-		onDone()
+		finishClean()
 		return 0
-	case wmClose:
-		// Default close behavior, even while scanning; no new cleanup starts.
 	case wmDestroy:
-		for _, h := range []uintptr{brushBackground, brushWhite, fontBrand, fontKicker, fontTitle, fontDescription, fontButton, fontStatus, fontFooter, aboutFont, aboutSmallFont} {
-			if h != 0 {
-				call(pDeleteObject, h)
-			}
+		mainWindow=0
+		for _,h:=range []uintptr{fontLogo,fontTiny,fontBody,fontMedium,fontTitle,fontAction,fontResult,
+			backgroundBrush,whiteBrush,aboutTitleFont} {
+			if h!=0 {call(pDeleteObject,h)}
 		}
-		call(pPostQuit, 0)
+		call(pPostQuit,0)
 		return 0
 	}
-	return call(pDefWindow, hwnd, uintptr(msg), wParam, lParam)
-}
-
-func buildUI() {
-	fontBrand = createFont(25, 700, "Segoe UI")
-	fontKicker = createFont(14, 600, "Segoe UI")
-	fontTitle = createFont(29, 700, "Segoe UI")
-	fontDescription = createFont(16, 400, "Segoe UI")
-	fontButton = createFont(19, 700, "Segoe UI")
-	fontStatus = createFont(15, 600, "Segoe UI")
-	fontFooter = createFont(13, 400, "Segoe UI")
-
-	hwndHeader = label("dwrean Cleaner", 111, 31, 435, 36, fontBrand)
-	hwndAboutButton = buttonIn(hwndMain, "Περί", idAbout, 644, 32, 70, 32)
-	hwndVersion = label("v"+appVersion, 545, 42, 93, 24, fontFooter)
-	if aboutLogoIcon != 0 {
-		hwndLogo = call(pCreateWindow, 0, ptr("STATIC"), 0, wsChild|wsVisible|3,
-			47, 27, 56, 56, hwndMain, 0, 0, 0)
-		call(pSendMessage, hwndLogo, 0x0170, imageIcon, aboutLogoIcon) // STM_SETIMAGE
-	}
-	hwndKicker = label("PORTABLE  •  WINDOWS 10 / 11", 112, 69, 505, 23, fontKicker)
-	hwndTitle = label("Ένας καθαρισμός. Ένα κλικ.", 46, 132, 648, 43, fontTitle)
-	hwndDescription = label("Αφαίρεσε παλιές caches και προσωρινά αρχεία, με ένα πάτημα.", 47, 185, 654, 27, fontDescription)
-	hwndButton = call(pCreateWindow, 0, ptr("BUTTON"), ptr("ΚΑΘΑΡΙΣΜΟΣ ΤΩΡΑ"), wsChild|wsVisible|bsOwnerDraw,
-		54, 254, 630, 70, hwndMain, idClean, 0, 0)
-	setFont(hwndButton, fontButton)
-	hwndStatus = label("Πάτησε το κουμπί για να ξεκινήσεις.", 56, 335, 620, 24, fontStatus)
-	hwndNote = label("Windows  •  Browser cache  •  GPU cache  •  Παλιά σφάλματα", 56, 363, 624, 20, fontFooter)
-	hwndFooter = label("© 2026 dwrean.net  •  Δωρεάν  •  Portable  •  MIT", 47, 418, 634, 26, fontFooter)
-	label("Ασφαλής καθαρισμός παλιών caches · τα προσωπικά αρχεία δεν πειράζονται.", 46, 464, 658, 20, fontFooter)
+	return call(pDefWindow,hwnd,uintptr(msg),wparam,lparam)
 }
 
 func main() {
 	runtime.LockOSThread()
-	call(pSetProcessDPIAware)
-	brushBackground = call(pCreateSolidBrush, rgb(247, 249, 253))
-	brushWhite = call(pCreateSolidBrush, rgb(255, 255, 255))
-	instance := call(pGetModuleHandle, 0)
-	icon := loadAppIcon(instance)
-	classname := utf16("DwreanCleanerPortableWindowV1")
-	cursor := call(pLoadCursor, 0, 32512) // IDC_ARROW
-	wc := wndClass{CbSize: uint32(unsafe.Sizeof(wndClass{})), WndProc: syscall.NewCallback(wndProc), Instance: instance,
-		Cursor: cursor, Background: brushBackground, ClassName: classname, Icon: icon, IconSmall: icon}
-	if call(pRegisterClass, uintptr(unsafe.Pointer(&wc))) == 0 {
-		return
+	// Windows scales a single compact UI uniformly for standard DPI settings.
+	// Do not force DPI-awareness without scaling every custom-painted element.
+	backgroundBrush=call(pCreateBrush,cCanvas)
+	whiteBrush=call(pCreateBrush,cWhite)
+	fontLogo=font(24,700)
+	fontTiny=font(13,500)
+	fontBody=font(16,400)
+	fontMedium=font(18,600)
+	fontTitle=font(34,700)
+	fontAction=font(20,700)
+	fontResult=font(23,700)
+	instance:=call(pGetModuleHandle,0)
+	appIcon=loadAppIcon(instance)
+	className:=utf16("DwreanCleanerModernV11")
+	class:=wndClass{
+		CbSize:uint32(unsafe.Sizeof(wndClass{})),
+		WndProc:syscall.NewCallback(mainWndProc),
+		Instance:instance,Icon:appIcon,IconSmall:appIcon,
+		Cursor:call(pLoadCursor,0,32512),
+		Background:backgroundBrush,ClassName:className,
 	}
-	hwndMain = call(pCreateWindow, 0, uintptr(unsafe.Pointer(classname)), ptr("dwrean Cleaner Portable · v"+appVersion),
-		wsCaption|wsSysMenu|wsMinimizeBox, 0x80000000, 0x80000000, 740, 540, 0, 0, instance, 0)
-	if hwndMain == 0 {
-		return
-	}
-	buildUI()
-	call(pShowWindow, hwndMain, swShow)
-	call(pUpdateWindow, hwndMain)
+	if call(pRegisterClass,uintptr(unsafe.Pointer(&class)))==0 {return}
+	// Outer size includes caption/frame; 810 x 625 fits common laptop screens.
+	mainWindow=call(pCreateWindow,0,uintptr(unsafe.Pointer(className)),
+		ptr("dwrean Cleaner Portable  •  v"+appVersion),
+		wsCaption|wsSysMenu|wsMinimizeBox,0x80000000,0x80000000,790,615,0,0,instance,0)
+	if mainWindow==0 {return}
+	aboutButton=button(mainWindow,idAbout,"Περί",rect(682,38,69,33))
+	cleanButton=button(mainWindow,idClean,"Καθαρισμός",rect(65,275,661,66))
+	call(pShowWindow,mainWindow,swShow)
+	call(pUpdateWindow,mainWindow)
 	var message winMessage
 	for {
-		n := int32(call(pGetMessage, uintptr(unsafe.Pointer(&message)), 0, 0, 0))
-		if n <= 0 {
-			break
-		}
-		call(pTranslateMessage, uintptr(unsafe.Pointer(&message)))
-		call(pDispatchMessage, uintptr(unsafe.Pointer(&message)))
+		result:=int32(call(pGetMessage,uintptr(unsafe.Pointer(&message)),0,0,0))
+		if result<=0 {break}
+		call(pTranslateMessage,uintptr(unsafe.Pointer(&message)))
+		call(pDispatchMessage,uintptr(unsafe.Pointer(&message)))
 	}
 }
