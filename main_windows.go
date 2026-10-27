@@ -223,7 +223,11 @@ func startClean() {
 	call(pEnableWindow, hwndButton, 0)
 	repaint()
 	go func() {
-		result := cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"), runningBrowsers()), nowForCleanup())
+		running := runningBrowsers()
+		result := cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"), running), nowForCleanup())
+		for _, name := range []string{"chrome", "msedge", "brave", "firefox"} {
+			if running[name] { result.BrowsersSkipped++ }
+		}
 		completedMu.Lock()
 		completed = result
 		completedMu.Unlock()
@@ -250,6 +254,9 @@ func onDone() {
 		} else {
 			setText(hwndNote, "Ο καθαρισμός ολοκληρώθηκε επιτυχώς.")
 		}
+	}
+	if result.BrowsersSkipped > 0 {
+		setText(hwndNote, "Για περισσότερη browser cache, κλείσε τους browsers και ξαναπάτησε.")
 	}
 	call(pEnableWindow, hwndButton, 1)
 	repaint()
