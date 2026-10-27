@@ -2,26 +2,26 @@
   "FixedFileInfo": {
     "FileVersion": {
       "Major": 1,
-      "Minor": 0,
+      "Minor": 1,
       "Patch": 0,
       "Build": 0
     },
     "ProductVersion": {
       "Major": 1,
-      "Minor": 0,
+      "Minor": 1,
       "Patch": 0,
       "Build": 0
     }
   },
   "StringFileInfo": {
     "CompanyName": "dwrean.net",
-    "FileDescription": "dwrean Cleaner Portable - One-click Windows temporary file cleaner",
-    "FileVersion": "1.0.0.0",
+    "FileDescription": "dwrean Cleaner Portable — one-click safe temporary file cleaner",
+    "FileVersion": "1.1.0.0",
     "InternalName": "dwrean-cleaner",
     "LegalCopyright": "Copyright 2026 dwrean.net",
     "OriginalFilename": "dwrean-cleaner-portable.exe",
     "ProductName": "dwrean Cleaner Portable",
-    "ProductVersion": "1.0.0.0"
+    "ProductVersion": "1.1.0.0"
   },
   "IconPath": "assets/dwrean-cleaner.ico",
   "ApplicationIconPath": "assets/dwrean-cleaner.ico"
