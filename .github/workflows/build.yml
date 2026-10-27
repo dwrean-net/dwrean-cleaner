@@ -1,0 +1,61 @@
+name: Build and release Windows portable app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Safety tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
+  build:
+    name: Build and Windows tests
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run Windows unit tests
+        run: go test ./...
+      - name: Compile portable executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          go build -trimpath -ldflags="-s -w -H windowsgui" -o dist/dwrean-cleaner-portable.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist/dwrean-cleaner-portable.exe -DestinationPath dist/dwrean-cleaner-portable.zip -Force
+          (Get-FileHash dist/dwrean-cleaner-portable.exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  dwrean-cleaner-portable.exe' | Set-Content -Encoding utf8 dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dwrean-cleaner-portable-windows-x64
+          path: |
+            dist/dwrean-cleaner-portable.exe
+            dist/dwrean-cleaner-portable.zip
+            dist/SHA256SUMS.txt
+      - name: Publish beta GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v0.1.0-beta'
+          $assets = @('dist/dwrean-cleaner-portable.exe', 'dist/dwrean-cleaner-portable.zip', 'dist/SHA256SUMS.txt')
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assets --clobber
+          } else {
+            gh release create $tag $assets --title 'dwrean Cleaner Portable v0.1.0 beta' --notes 'Αρχική δοκιμαστική έκδοση. Δοκίμασε πρώτα σε περιβάλλον Windows 10/11 πριν από ευρεία δημόσια διάθεση.' --prerelease --target $env:GITHUB_SHA
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
