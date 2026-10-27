@@ -4,3 +4,7 @@
 dist/
 .idea/
 .vscode/
+
+# Generated build icon/resource; source stays clean
+resource.syso
+assets/*.ico
