@@ -54,7 +54,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v0.2.0-beta'
+          $tag = 'v0.2.1-beta'
           $assets = @('dist/dwrean-cleaner-portable.exe', 'dist/dwrean-cleaner-portable.zip', 'dist/SHA256SUMS.txt')
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
