@@ -218,12 +218,12 @@ func startClean() {
 	}
 	active = true
 	finished = false
-	setText(hwndStatus, "Ελέγχονται τα παλιά προσωρινά αρχεία...")
+	setText(hwndStatus, "Ελέγχονται Windows, προσωρινά, browser και GPU cache...")
 	setText(hwndNote, "Δεν αφαιρούνται προσωπικά αρχεία ή αρχεία που χρησιμοποιούνται.")
 	call(pEnableWindow, hwndButton, 0)
 	repaint()
 	go func() {
-		result := cleanTargets(targetsForLocal(os.Getenv("LOCALAPPDATA")), nowForCleanup())
+		result := cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"), runningBrowsers()), nowForCleanup())
 		completedMu.Lock()
 		completed = result
 		completedMu.Unlock()
@@ -321,12 +321,12 @@ func buildUI() {
 	hwndHeader = label("dwrean Cleaner", 44, 32, 590, 36, fontBrand)
 	hwndKicker = label("PORTABLE  •  WINDOWS 10 / 11", 46, 77, 570, 23, fontKicker)
 	hwndTitle = label("Ένας καθαρισμός. Ένα κλικ.", 44, 121, 605, 43, fontTitle)
-	hwndDescription = label("Αφαίρεσε παλιά προσωρινά αρχεία, χωρίς περίπλοκες ρυθμίσεις.", 45, 174, 596, 27, fontDescription)
+	hwndDescription = label("Αφαίρεσε παλιές caches και προσωρινά αρχεία, με ένα πάτημα.", 45, 174, 596, 27, fontDescription)
 	hwndButton = call(pCreateWindow, 0, ptr("BUTTON"), ptr("ΚΑΘΑΡΙΣΜΟΣ ΤΩΡΑ"), wsChild|wsVisible|bsOwnerDraw,
 		51, 246, 576, 65, hwndMain, idClean, 0, 0)
 	setFont(hwndButton, fontButton)
 	hwndStatus = label("Πάτησε το κουμπί για να ξεκινήσεις.", 52, 323, 568, 24, fontStatus)
-	hwndNote = label("Προσωρινά αρχεία  •  DirectX cache  •  Παλιά σφάλματα", 52, 348, 568, 20, fontFooter)
+	hwndNote = label("Windows  •  Browser cache  •  GPU cache  •  Παλιά σφάλματα", 52, 348, 568, 20, fontFooter)
 	hwndFooter = label("Οριστική διαγραφή προσωρινών · Λήψεις, Έγγραφα και Κάδος ανέπαφα.", 44, 390, 595, 24, fontFooter)
 }
 
