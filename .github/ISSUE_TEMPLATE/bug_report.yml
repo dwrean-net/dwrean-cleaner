@@ -1,0 +1,44 @@
+name: Αναφορά προβλήματος
+description: Βοήθησέ μας να διορθώσουμε κάποιο πρόβλημα στο dwrean Cleaner.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Σε παρακαλούμε **μη δημοσιεύεις προσωπικά αρχεία ή ευαίσθητα δεδομένα**.
+  - type: input
+    id: version
+    attributes:
+      label: Έκδοση dwrean Cleaner
+      placeholder: π.χ. 1.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      options:
+        - Windows 10 (64-bit)
+        - Windows 11 (64-bit)
+        - Άλλη έκδοση
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Τι συνέβη;
+      description: Περιέγραψε το πρόβλημα με απλά λόγια.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Πώς αναπαράγεται;
+      placeholder: "1. Άνοιξα την εφαρμογή\n2. Πάτησα Καθαρισμός\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Τι περίμενες να συμβεί;
