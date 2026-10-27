@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: dwrean-cleaner-release-${{ github.ref }}
+  group: dwrean-cleaner-stable-v1-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
