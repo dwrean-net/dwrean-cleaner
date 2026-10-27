@@ -22,6 +22,7 @@ type CleanResult struct {
 	Skipped   int
 	Scanned   int
 	Locations int
+	BrowsersSkipped int
 }
 
 // targetsForLocal requires the standard LocalAppData suffix so a broken or
