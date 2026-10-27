@@ -50,12 +50,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v0.1.0-beta'
+          $tag = 'v0.2.0-beta'
           $assets = @('dist/dwrean-cleaner-portable.exe', 'dist/dwrean-cleaner-portable.zip', 'dist/SHA256SUMS.txt')
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $assets --clobber
           } else {
-            gh release create $tag $assets --title 'dwrean Cleaner Portable v0.1.0 beta' --notes 'Αρχική δοκιμαστική έκδοση. Δοκίμασε πρώτα σε περιβάλλον Windows 10/11 πριν από ευρεία δημόσια διάθεση.' --prerelease --target $env:GITHUB_SHA
+            gh release create $tag $assets --title 'dwrean Cleaner Portable v0.1.0 beta' --notes 'Επεκταμένος προσεκτικός καθαρισμός browser/GPU caches και Windows error reports. Δοκίμασε πρώτα σε περιβάλλον Windows 10/11 πριν από ευρεία δημόσια διάθεση.' --prerelease --target $env:GITHUB_SHA
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
