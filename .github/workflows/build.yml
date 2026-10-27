@@ -47,7 +47,7 @@ jobs:
       - name: Embed brand icon and Windows file-version metadata
         shell: pwsh
         run: |
-          go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.2.0 -64 -o=resource.syso -icon=assets/dwrean-cleaner.ico -application-icon=assets/dwrean-cleaner.ico
+          go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0 -64 -o resource.syso -icon assets/dwrean-cleaner.ico -application-icon assets/dwrean-cleaner.ico versioninfo.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path resource.syso)) { throw 'No Windows icon/version resource generated' }
       - name: Build portable Windows executable
