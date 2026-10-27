@@ -129,6 +129,9 @@ var (
 	hwndTitle       uintptr
 	hwndDescription uintptr
 	hwndFooter      uintptr
+	hwndAboutButton uintptr
+	hwndVersion uintptr
+	hwndLogo uintptr
 
 	brushBackground uintptr
 	brushWhite      uintptr
@@ -181,11 +184,11 @@ func drawBackground(hwnd uintptr) {
 	if hdc == 0 {
 		return
 	}
-	var accent = winRect{0, 0, 680, 7}
+	var accent = winRect{0, 0, 740, 7}
 	blueBrush := call(pCreateSolidBrush, rgb(31, 110, 245))
 	call(pFillRect, hdc, uintptr(unsafe.Pointer(&accent)), blueBrush)
 	call(pDeleteObject, blueBrush)
-	roundedFill(hdc, winRect{33, 231, 647, 368}, rgb(255, 255, 255), 24)
+	roundedFill(hdc, winRect{35, 238, 704, 390}, rgb(255, 255, 255), 24)
 	call(pEndPaint, hwnd, uintptr(unsafe.Pointer(&ps)))
 }
 
@@ -218,7 +221,7 @@ func startClean() {
 	}
 	active = true
 	finished = false
-	setText(hwndStatus, "Ελέγχονται Windows, προσωρινά, browser και GPU cache...")
+	setText(hwndStatus, "Ελέγχονται προσωρινά αρχεία και caches...")
 	setText(hwndNote, "Δεν αφαιρούνται προσωπικά αρχεία ή αρχεία που χρησιμοποιούνται.")
 	call(pEnableWindow, hwndButton, 0)
 	repaint()
@@ -295,6 +298,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			return 1
 		}
 	case wmCommand:
+		if wParam&0xffff == idAbout {
+			showAbout()
+			return 0
+		}
 		if wParam&0xffff == idClean {
 			startClean()
 			return 0
@@ -305,7 +312,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case wmClose:
 		// Default close behavior, even while scanning; no new cleanup starts.
 	case wmDestroy:
-		for _, h := range []uintptr{brushBackground, brushWhite, fontBrand, fontKicker, fontTitle, fontDescription, fontButton, fontStatus, fontFooter} {
+		for _, h := range []uintptr{brushBackground, brushWhite, fontBrand, fontKicker, fontTitle, fontDescription, fontButton, fontStatus, fontFooter, aboutFont, aboutSmallFont} {
 			if h != 0 {
 				call(pDeleteObject, h)
 			}
@@ -325,16 +332,24 @@ func buildUI() {
 	fontStatus = createFont(15, 600, "Segoe UI")
 	fontFooter = createFont(13, 400, "Segoe UI")
 
-	hwndHeader = label("dwrean Cleaner", 44, 32, 590, 36, fontBrand)
-	hwndKicker = label("PORTABLE  •  WINDOWS 10 / 11", 46, 77, 570, 23, fontKicker)
-	hwndTitle = label("Ένας καθαρισμός. Ένα κλικ.", 44, 121, 605, 43, fontTitle)
-	hwndDescription = label("Αφαίρεσε παλιές caches και προσωρινά αρχεία, με ένα πάτημα.", 45, 174, 596, 27, fontDescription)
+	hwndHeader = label("dwrean Cleaner", 111, 31, 435, 36, fontBrand)
+	hwndAboutButton = buttonIn(hwndMain, "Περί", idAbout, 644, 32, 70, 32)
+	hwndVersion = label("v"+appVersion, 545, 42, 93, 24, fontFooter)
+	if aboutLogoIcon != 0 {
+		hwndLogo = call(pCreateWindow, 0, ptr("STATIC"), 0, wsChild|wsVisible|3,
+			47, 27, 56, 56, hwndMain, 0, 0, 0)
+		call(pSendMessage, hwndLogo, 0x0170, imageIcon, aboutLogoIcon) // STM_SETIMAGE
+	}
+	hwndKicker = label("PORTABLE  •  WINDOWS 10 / 11", 112, 69, 505, 23, fontKicker)
+	hwndTitle = label("Ένας καθαρισμός. Ένα κλικ.", 46, 132, 648, 43, fontTitle)
+	hwndDescription = label("Αφαίρεσε παλιές caches και προσωρινά αρχεία, με ένα πάτημα.", 47, 185, 654, 27, fontDescription)
 	hwndButton = call(pCreateWindow, 0, ptr("BUTTON"), ptr("ΚΑΘΑΡΙΣΜΟΣ ΤΩΡΑ"), wsChild|wsVisible|bsOwnerDraw,
-		51, 246, 576, 65, hwndMain, idClean, 0, 0)
+		54, 254, 630, 70, hwndMain, idClean, 0, 0)
 	setFont(hwndButton, fontButton)
-	hwndStatus = label("Πάτησε το κουμπί για να ξεκινήσεις.", 52, 323, 568, 24, fontStatus)
-	hwndNote = label("Windows  •  Browser cache  •  GPU cache  •  Παλιά σφάλματα", 52, 348, 568, 20, fontFooter)
-	hwndFooter = label("Οριστική διαγραφή προσωρινών · Λήψεις, Έγγραφα και Κάδος ανέπαφα.", 44, 390, 595, 24, fontFooter)
+	hwndStatus = label("Πάτησε το κουμπί για να ξεκινήσεις.", 56, 335, 620, 24, fontStatus)
+	hwndNote = label("Windows  •  Browser cache  •  GPU cache  •  Παλιά σφάλματα", 56, 363, 624, 20, fontFooter)
+	hwndFooter = label("© 2026 dwrean.net  •  Δωρεάν  •  Portable  •  MIT", 47, 418, 634, 26, fontFooter)
+	label("Ασφαλής καθαρισμός παλιών caches · τα προσωπικά αρχεία δεν πειράζονται.", 46, 464, 658, 20, fontFooter)
 }
 
 func main() {
@@ -343,15 +358,16 @@ func main() {
 	brushBackground = call(pCreateSolidBrush, rgb(247, 249, 253))
 	brushWhite = call(pCreateSolidBrush, rgb(255, 255, 255))
 	instance := call(pGetModuleHandle, 0)
+	icon := loadAppIcon(instance)
 	classname := utf16("DwreanCleanerPortableWindowV1")
 	cursor := call(pLoadCursor, 0, 32512) // IDC_ARROW
 	wc := wndClass{CbSize: uint32(unsafe.Sizeof(wndClass{})), WndProc: syscall.NewCallback(wndProc), Instance: instance,
-		Cursor: cursor, Background: brushBackground, ClassName: classname}
+		Cursor: cursor, Background: brushBackground, ClassName: classname, Icon: icon, IconSmall: icon}
 	if call(pRegisterClass, uintptr(unsafe.Pointer(&wc))) == 0 {
 		return
 	}
-	hwndMain = call(pCreateWindow, 0, uintptr(unsafe.Pointer(classname)), ptr("dwrean Cleaner — Portable"),
-		wsCaption|wsSysMenu|wsMinimizeBox, 0x80000000, 0x80000000, 680, 460, 0, 0, instance, 0)
+	hwndMain = call(pCreateWindow, 0, uintptr(unsafe.Pointer(classname)), ptr("dwrean Cleaner Portable · v"+appVersion),
+		wsCaption|wsSysMenu|wsMinimizeBox, 0x80000000, 0x80000000, 740, 540, 0, 0, instance, 0)
 	if hwndMain == 0 {
 		return
 	}
