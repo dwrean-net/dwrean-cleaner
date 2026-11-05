@@ -8,9 +8,10 @@ import (
 	"unsafe"
 )
 
-// On enumeration failure assume every browser is open and skip its caches.
-func runningBrowsers() map[string]bool {
-	names := []string{"chrome", "msedge", "brave", "firefox"}
+// On enumeration failure assume each supported cache-owning app is open.
+// Fail closed: never touch the cache of an application we cannot verify is stopped.
+func runningCleanupProcesses() map[string]bool {
+	names := []string{"chrome", "msedge", "brave", "firefox", "discord"}
 	open := make(map[string]bool, len(names))
 	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
