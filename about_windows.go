@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	appVersion = "1.1.0"
+	appVersion = "1.2.0"
 	appSiteURL = "https://www.dwrean.net/"
 	appRepoURL = "https://github.com/dwrean-net/dwrean-cleaner"
 	idAbout = 1002
