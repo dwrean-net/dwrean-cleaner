@@ -131,6 +131,7 @@ var (
 
 	mainWindow uintptr
 	cleanButton uintptr
+	recycleButton uintptr
 	aboutButton uintptr
 	backgroundBrush uintptr
 	whiteBrush uintptr
@@ -225,6 +226,12 @@ func drawModernButton(item *drawItem) {
 		if active {label="ΓΙΝΕΤΑΙ ΚΑΘΑΡΙΣΜΟΣ..."}
 		if finished && !active {label="ΚΑΘΑΡΙΣΜΟΣ ΞΑΝΑ"}
 		if disabled {color=rgb(152,180,225)} else if pressed {color=rgb(21,73,180)} else if hot {color=cBlueHover}
+	case idRecycle:
+		label="Άδειασμα Κάδου..."
+		color=cWhite
+		textColor=cBlue
+		f=fontTiny
+		if pressed {color=rgb(218,230,248)} else if hot {color=rgb(239,246,255)}
 	case idAbout:
 		label="ⓘ  Περί"
 		color=cSoftBlue
@@ -294,7 +301,7 @@ func paintMain(hwnd uintptr) {
 	roundRect(hdc,rect(38,462,714,59),cSoftBlue,22)
 	roundRect(hdc,rect(57,479,20,20),rgb(202,224,255),20)
 	drawText(hdc,"✓",rect(57,479,20,20),fontTiny,cBlue,dtCenter|dtVCenter|dtSingleLine)
-	drawText(hdc,statusFoot,rect(90,469,637,45),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
+	drawText(hdc,statusFoot,rect(90,476,477,43),fontTiny,cMuted,dtLeft|dtWordBreak)
 
 	drawText(hdc,"© 2026 dwrean.net    •    Δωρεάν και ανοιχτού κώδικα (MIT)",rect(43,532,600,25),fontTiny,cMuted,dtLeft|dtVCenter|dtSingleLine)
 	drawText(hdc,"v"+appVersion,rect(676,532,71,25),fontTiny,cMuted,dtCenter|dtVCenter|dtSingleLine)
@@ -311,11 +318,12 @@ func startClean() {
 	statusBody="Ελέγχουμε προσεκτικά τους επιτρεπόμενους φακέλους."
 	statusFoot="Μην κλείσεις την εφαρμογή μέχρι να ολοκληρωθεί."
 	call(pEnableWindow,cleanButton,0)
+	call(pEnableWindow,recycleButton,0)
 	repaintMain()
 	go func(){
-		running:=runningBrowsers()
-		result:=cleanTargets(fullTargetsForLocal(os.Getenv("LOCALAPPDATA"),running),nowForCleanup())
-		for _,name:=range []string{"chrome","msedge","brave","firefox"} {
+		running:=runningCleanupProcesses()
+		result:=cleanTargets(fullTargetsForUser(os.Getenv("LOCALAPPDATA"),os.Getenv("APPDATA"),running),nowForCleanup())
+		for _,name:=range []string{"chrome","msedge","brave","firefox","discord"} {
 			if running[name] {result.BrowsersSkipped++}
 		}
 		completedMu.Lock()
@@ -347,6 +355,7 @@ func finishClean() {
 		statusFoot="Για επιπλέον browser cache, κλείσε τους browsers και ξαναδοκίμασε."
 	}
 	call(pEnableWindow,cleanButton,1)
+	call(pEnableWindow,recycleButton,1)
 	repaintMain()
 }
 
@@ -358,7 +367,7 @@ func mainWndProc(hwnd uintptr,msg uint32,wparam,lparam uintptr) uintptr {
 	case wmDrawItem:
 		if lparam!=0 {
 			item:=(*drawItem)(unsafe.Pointer(lparam))
-			if item.CtlID==idClean || item.CtlID==idAbout {
+			if item.CtlID==idClean || item.CtlID==idAbout || item.CtlID==idRecycle {
 				drawModernButton(item)
 				return 1
 			}
@@ -370,6 +379,9 @@ func mainWndProc(hwnd uintptr,msg uint32,wparam,lparam uintptr) uintptr {
 			return 0
 		case idAbout:
 			showAbout()
+			return 0
+		case idRecycle:
+			emptyRecycleBinWithConfirmation()
 			return 0
 		}
 	case wmDone:
@@ -418,6 +430,7 @@ func main() {
 	if mainWindow==0 {return}
 	aboutButton=button(mainWindow,idAbout,"Περί",rect(682,38,69,33))
 	cleanButton=button(mainWindow,idClean,"Καθαρισμός",rect(65,275,661,66))
+	recycleButton=button(mainWindow,idRecycle,"Άδειασμα Κάδου",rect(582,471,154,43))
 	call(pShowWindow,mainWindow,swShow)
 	call(pUpdateWindow,mainWindow)
 	var message winMessage
