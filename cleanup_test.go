@@ -135,3 +135,74 @@ func TestNoBrowserCredentialsOrHistoryInTargets(t *testing.T) {
 		}
 	}
 }
+
+func TestDiscordCacheOnlyWhenClosedAndOver30Days(t *testing.T) {
+	user:=t.TempDir()
+	local:=filepath.Join(user,"AppData","Local")
+	roaming:=filepath.Join(user,"AppData","Roaming")
+	cache:=filepath.Join(roaming,"discord","Cache")
+	settings:=filepath.Join(roaming,"discord","Local Storage")
+	for _,dir:=range []string{cache,settings} {
+		if err:=os.MkdirAll(dir,0700);err!=nil {t.Fatal(err)}
+	}
+	old:=filepath.Join(cache,"old_cache_entry")
+	recent:=filepath.Join(cache,"new_cache_entry")
+	protected:=filepath.Join(settings,"leveldb")
+	for _,name:=range []string{old,recent,protected} {
+		if err:=os.WriteFile(name,[]byte("valuable"),0600);err!=nil {t.Fatal(err)}
+	}
+	past:=time.Now().Add(-35*24*time.Hour)
+	for _,name:=range []string{old,protected} {
+		if err:=os.Chtimes(name,past,past);err!=nil {t.Fatal(err)}
+	}
+	if r:=cleanTargets(fullTargetsForUser(local,roaming,map[string]bool{"discord":true}),time.Now());r.Deleted!=0 {
+		t.Fatalf("closed-only cache modified while Discord running: %+v",r)
+	}
+	for _,name:=range []string{old,recent,protected} {
+		if _,err:=os.Stat(name);err!=nil {t.Fatalf("item unexpectedly deleted while Discord active: %s %v",name,err)}
+	}
+	r:=cleanTargets(fullTargetsForUser(local,roaming,map[string]bool{}),time.Now())
+	if r.Deleted!=1 {t.Fatalf("expected exactly one old cache file removed: %+v",r)}
+	if _,err:=os.Stat(old);!os.IsNotExist(err) {t.Fatalf("old cache must be deleted, error: %v",err)}
+	for _,name:=range []string{recent,protected} {
+		if _,err:=os.Stat(name);err!=nil {t.Fatalf("recent/cache-adjacent file deleted: %s %v",name,err)}
+	}
+}
+
+func TestDiscordCacheRejectsWrongRoamingRoot(t *testing.T) {
+	user:=t.TempDir()
+	local:=filepath.Join(user,"AppData","Local")
+	valid:=filepath.Join(user,"AppData","Roaming")
+	for _,wrong:=range []string{
+		"",
+		filepath.Join(user,"Different","Roaming"),
+		filepath.Join(user,"AppData","Local"),
+		filepath.Join(user,"AppData","Roaming","Other"),
+		"relative/Roaming",
+	} {
+		if got:=discordCacheTargets(local,wrong,nil);len(got)!=0 {
+			t.Fatalf("unexpected approval of roaming path %q: %+v",wrong,got)
+		}
+	}
+	cache:=filepath.Join(valid,"discord","Cache")
+	if err:=os.MkdirAll(cache,0700);err!=nil {t.Fatal(err)}
+	if got:=discordCacheTargets(local,valid,nil);len(got)!=1 {t.Fatalf("expected one verified Discord cache target, got %+v",got)}
+}
+
+func TestDiscordDoesNotFollowCacheLinks(t *testing.T) {
+	user:=t.TempDir()
+	local:=filepath.Join(user,"AppData","Local")
+	roaming:=filepath.Join(user,"AppData","Roaming")
+	discord:=filepath.Join(roaming,"discord")
+	outside:=filepath.Join(user,"Documents")
+	if err:=os.MkdirAll(discord,0700);err!=nil {t.Fatal(err)}
+	if err:=os.MkdirAll(outside,0700);err!=nil {t.Fatal(err)}
+	keep:=filepath.Join(outside,"dont-delete.txt")
+	if err:=os.WriteFile(keep,[]byte("keep"),0600);err!=nil {t.Fatal(err)}
+	past:=time.Now().Add(-40*24*time.Hour)
+	if err:=os.Chtimes(keep,past,past);err!=nil {t.Fatal(err)}
+	if err:=os.Symlink(outside,filepath.Join(discord,"Cache"));err!=nil {t.Skip("symlink is unavailable on this host")}
+	got:=cleanTargets(fullTargetsForUser(local,roaming,nil),time.Now())
+	if got.Deleted!=0 {t.Fatalf("followed linked Discord cache: %+v",got)}
+	if _,err:=os.Stat(keep);err!=nil {t.Fatal(err)}
+}
